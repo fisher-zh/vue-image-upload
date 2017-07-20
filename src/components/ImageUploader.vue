@@ -2,14 +2,10 @@
   <div class="img-uploader"
        @drop="handleDrop"
        ref="uploader">
-
-    <!--没有图片显示点击上传-->
-
     <!--图片预览列表-->
     <div class="img-uploader-preview-list">
       <div v-for="(data,index) in imageDataList" class="img-uploader-preview">
-
-        <div class="preview-img">
+        <div class="preview-img" @click="showLargerPreview(index)">
           <img :src="data"/>
         </div>
         <!--信息窗-->
@@ -17,6 +13,7 @@
           <!--<p class="img-uploader-file-size">10MB</p>-->
           <p class="img-uploader-file-name">{{fileNameList[index]}}</p>
         </div>
+        <!-- 删除 -->
         <div class="img-uploader-delete-btn" @click="deleteImg(index)">x</div>
       </div>
       <div class="img-uploader-preview">
@@ -35,14 +32,15 @@
         </p>
       </div>
     </div>
-
-
     <!--错误提示-->
     <div class="img-uploader-error" v-if="errorText.length">{{errorText}}</div>
-
     <!--文件数-->
     <div class="img-uploader-count" v-if="countText.length">{{countText}}</div>
-
+    <!-- 大图预览 -->
+    <div ref="largerPreview" v-show="isShowLarger" class="largerPreview">
+      <img :src="largerDataList[previewIndex]" alt="">
+      <div class="preview-close-btn" @click="closePreview">x</div>
+    </div>
   </div>
 </template>
 
@@ -70,6 +68,8 @@
       return {
         // input 的id
         inputId: '',
+        //大图地址
+        largerDataList: [],
         // 预览图片地址
         imageDataList: [],
         // 文件名
@@ -77,7 +77,11 @@
         // 错误提示
         errorText: '',
         // 图片计数
-        countText: ''
+        countText: '',
+        // 是否显示大图预览
+        isShowLarger: false,
+        // 大图预览索引
+        previewIndex: 0
       };
     },
     computed: {
@@ -92,25 +96,20 @@
         return result;
       }
     },
-    mounted () {
-      // 防止多个组件互相影响
-      this.inputId = this.id || Math.round(Math.random() * 100000);
-
-      ['drop', 'dragenter', 'dragover', 'dragleave'].forEach((eventName) => {
-        this.preventDefaultEvent(eventName);
-      });
-    },
     methods: {
+      // change事件
       handleFileChange(){
         let input = this.$refs.input;
         let files = input.files;
         this.handleFile(files);
       },
+      // 拖动事件
       handleDrop (e) {
         // 获取文件列表
         let files = e.dataTransfer.files;
         this.handleFile(files);
       },
+      // 阻止默认事件
       preventDefaultEvent(eventName){
         document.addEventListener(eventName, function (e) {
           e.preventDefault();
@@ -118,6 +117,7 @@
       },
       deleteImg(index){
         this.imageDataList.splice(index, 1);
+        this.largerDataList.splice(index, 1);
         this.countText = `${this.imageDataList.length}张图片`;
       },
       // 处理图片
@@ -147,7 +147,7 @@
 
         this.preview(files);
       },
-      // 预览图片
+      // 读取图片data
       preview (files) {
         if (!files || !window.FileReader) return;
 
@@ -161,14 +161,34 @@
           // 如果设置了onloadend事件处理程序,则调用之.
           // 同时,result属性中将包含一个data: URL格式的字符串以表示所读取文件的内容.
           reader.onload = (e) => {
+            this.largerDataList.push(e.target.result)
             // this.imageDataList.push(e.target.result)
             resizeImage(e.target.result, 110, 110, (result) => {
               this.imageDataList.push(result);
             });
           };
         }
+      },
+      // 大图预览
+      showLargerPreview(index) {
+        this.isShowLarger = true
+        this.previewIndex = index
+      },
+      closePreview() {
+        this.isShowLarger = false
       }
-    }
+    },
+    mounted () {
+      // 防止多个组件互相影响
+      this.inputId = this.id || new Date().getTime();
+
+      ['drop', 'dragenter', 'dragover', 'dragleave'].forEach((eventName) => {
+        this.preventDefaultEvent(eventName);
+      });
+      // 大图预览居中
+      const screenwidth = document.body.clientWidth;
+      this.$refs.largerPreview.style.left = (screenwidth - 800) / 2 + 'px';
+    },
   };
 </script>
 
@@ -178,7 +198,7 @@
   }
   .img-uploader {
     position: relative;
-    display: inline-block;
+    margin: 100px auto;
     width: 400px;
     min-height: 400px;
     border-radius: 5px;
@@ -296,6 +316,33 @@
     position: absolute;
     bottom: -28px;
     width: 100%;
+  }
+  .largerPreview {
+    position: fixed;
+    top: 100px;
+    left: 0;
+    border-radius: 10px;
+    width: 800px;
+    height: auto;
+    overflow: hidden;
+    z-index: 10;
+  }
+  .largerPreview .preview-close-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 20px;
+    height: 20px;
+    color: #fff;
+    border: 2px solid #fff;
+    font-size: 16px;
+    line-height: 20px;
+    border-radius: 100%;
+    cursor: pointer;
+  }
+  .largerPreview img {
+    width: 100%;
+    height: auto;
   }
 
 </style>
